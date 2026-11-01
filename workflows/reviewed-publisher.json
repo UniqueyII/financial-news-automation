@@ -1,0 +1,161 @@
+{
+  "name": "Send Reviewed Preview",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -736,
+        16
+      ],
+      "id": "fc73778e-2321-422d-9d21-7a43632346f9",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Review the stored message before enabling this manual publisher.\nconst c = { chatId: 'REPLACE_WITH_CHAT_ID', articleId: 0, confirmSend: false };\nif (!c.confirmSend) throw new Error('Review the article, then set confirmSend=true to send it.');\nif (!Number.isSafeInteger(c.articleId) || c.articleId <= 0) throw new Error('Set a valid articleId.');\nif (!c.chatId || c.chatId.includes('REPLACE_')) throw new Error('Set your Telegram chatId.');\nreturn [{json:c}];\n"
+      },
+      "id": "67f665cc-e659-41d7-8f56-7cc19d99333c",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -528,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Config').first().json.chatId }}",
+        "text": "={{ $json.message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "303a3606-1b44-4d47-80c1-24566f397c04",
+      "name": "Telegram Publish",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -144,
+        16
+      ],
+      "retryOnFail": false,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE market_news.articles\nSET status = 'sending',\n    owner = $1,\n    updated_at = now()\nWHERE id = $2::bigint\n  AND status = 'preview'\n  AND telegram_message_id IS NULL\n  AND NULLIF(btrim(message), '') IS NOT NULL\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ [String($execution.id), $('Config').first().json.articleId] }}"
+        }
+      },
+      "id": "4a6eed7d-c35e-49d8-9af3-365c352aec1b",
+      "name": "Reserve Delivery",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -320,
+        16
+      ],
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE market_news.articles SET status=$2,telegram_message_id=$3,last_error=$4,sent_at=CASE WHEN $2='sent' THEN now() ELSE sent_at END,updated_at=now() WHERE id=$1::bigint AND owner=$5 AND status='sending' RETURNING id,status;",
+        "options": {
+          "queryReplacement": "={{ [$json.id,$json.status,$json.message_id,$json.error,$json.owner] }}"
+        }
+      },
+      "id": "2312b2e0-693f-43ed-ad2f-1b0c3eec5e77",
+      "name": "Record Delivery",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        224,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const a=$('Reserve Delivery').item.json,r=$input.first().json;\nconst mid=r.result?.message_id ?? r.message_id;\nconst confirmed=!r.error && r.ok!==false && Number.isInteger(Number(mid)) && Number(mid)>0;\nreturn [{json:{id:a.id,status:confirmed?'sent':'send_unknown',message_id:confirmed?String(mid):null,error:confirmed?null:'Delivery not confirmed. Inspect Telegram and execution before any resend.',owner:String($execution.id)}}];"
+      },
+      "id": "8e39eef4-ce99-43a6-a15d-aa7db0e3a998",
+      "name": "Delivery Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        16
+      ]
+    }
+  ],
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Reserve Delivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reserve Delivery": {
+      "main": [
+        [
+          {
+            "node": "Telegram Publish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Publish": {
+      "main": [
+        [
+          {
+            "node": "Delivery Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delivery Result": {
+      "main": [
+        [
+          {
+            "node": "Record Delivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "active": false,
+  "pinData": {}
+}
