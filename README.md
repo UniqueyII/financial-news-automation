@@ -17,10 +17,10 @@ The current version has been demonstrated locally with live source ingestion, mo
 
 ## Workflow overview
 
-![n8n workflow for financial news ingestion, analysis and Telegram publishing](docs/images/n8n-workflow.png)
+![n8n workflow for financial news ingestion, analysis and Telegram publishing](docs/Images/n8n-workflow.png)
 
 The workflow coordinates source ingestion, PostgreSQL queue management,
-structured analysis, validation and controlled Telegram delivery.
+structured analysis, validation, and controlled Telegram delivery.
 
 ## How it works
 
