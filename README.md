@@ -15,6 +15,13 @@ This project implements that workflow end to end. It collects articles from eigh
 
 The current version has been demonstrated locally with live source ingestion, model inference and Telegram delivery. The shared workflows start inactive and in preview mode.
 
+## Workflow overview
+
+![n8n workflow for financial news ingestion, analysis and Telegram publishing](docs/images/n8n-workflow.png)
+
+The workflow coordinates source ingestion, PostgreSQL queue management,
+structured analysis, validation and controlled Telegram delivery.
+
 ## How it works
 
 ```mermaid
@@ -123,7 +130,6 @@ These checks do not execute PostgreSQL queries or contact external APIs. Live ob
 | [`docs/setup.md`](docs/setup.md) | Credentials, configuration and operating instructions |
 | [`docs/architecture.md`](docs/architecture.md) | Queue design, states and delivery behavior |
 | [`docs/testing.md`](docs/testing.md) | Validation evidence and scope |
-| [`docs/demo-and-resume.md`](docs/demo-and-resume.md) | Recording guide and project presentation material |
 
 ## Operating boundaries
 
